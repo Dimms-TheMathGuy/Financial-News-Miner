@@ -1,78 +1,81 @@
 # 📈 Session Progress Tracker
 
-## ✅ Completed (Session 2026-06-05)
+## ✅ Completed
 
-- [x] **PIVOT:** Rombak total project scope — dari LLM weak supervision ke NER + ABSA murni (keputusan dosen).
-- [x] Perbarui `PROJECT_CONTEXT.md`, `SESSION_INITIALIZATION.md` sesuai scope baru.
-- [x] **Sprint 1 SELESAI & divalidasi:** `notebooks/01_data_exploration.ipynb`
-  - Parse `SEntFiN-v1.1.csv` → 0 failures, 0 label kotor.
-  - Explode ke long-format `(s_no, title, entity, sentiment)`.
-  - EDA distribusi, verifikasi klaim README.
-  - **Entity-span coverage: 100%** → BIO auto-labeling via substring-matching layak.
+### Session 2026-06-05
+- [x] Pivot project scope: LLM weak supervision → NER + ABSA murni (keputusan dosen).
+- [x] Perbarui `PROJECT_CONTEXT.md`, `SESSION_INITIALIZATION.md`.
+- [x] **Sprint 1 SELESAI:** `notebooks/01_data_exploration.ipynb`
+  - 10.753 headlines → 14.409 pasangan (headline, entity). Coverage 100%.
   - Output: `data/processed/sentfin_long.csv`
-- [x] **Sprint 2 DITULIS & DIFIX:** `notebooks/02_preprocessing.ipynb`
-  - Investigasi 67 duplikat → 55 identik, 12 konflik.
-  - Dedup: buang semua konflik, keep s_no terkecil untuk identik.
-  - Stratified split level-headline 80/10/10 → distribusi sentimen antar-split konsisten (±1%).
-  - BIO tagger dengan possessive-aware boundary check (`HULs`, `FTILs`, dll).
-  - Fix validasi mismatch (per-entity, bukan total B-ENT count).
-  - Mismatch headlines dikecualikan dari NER, tetap masuk ABSA.
+- [x] **Sprint 2 SELESAI (difix & re-run):** `notebooks/02_preprocessing.ipynb`
+  - Dedup: 55 identik + 12 konflik ditangani.
+  - BIO tagger possessive-aware, stratified split level-headline 80/10/10.
+  - Mismatch: 122 → 39 (genuine limitation, excluded dari NER).
+  - Output: `ner_{train,val,test}.jsonl`, `absa_{train,val,test}.csv`
+
+### Session 2026-06-06
+- [x] Verifikasi Sprint 2 re-run: angka final dikonfirmasi (10.674 headlines, 39 mismatch, split konsisten).
+- [x] Install `sklearn-crfsuite` + `seqeval` di Python 3.14 (kernel notebook). Wheel pre-built tersedia.
+- [x] **Sprint 3 DITULIS & SMOKE-TESTED:** `notebooks/03_baseline_models.ipynb`
+  - **Part A - NER CRF:** feature engineering (window ±2), train CRF, evaluasi seqeval entity-level F1, interpretabilitas transition/state features.
+  - **Part B - ABSA TF-IDF+SVM:** input `title [SEP] entity`, LinearSVC `class_weight='balanced'`, evaluasi per-class + breakdown `single/multi-uniform/multi-conflict` untuk mengukur keterbatasan BoW.
+  - Smoke test full pipeline lulus di Python 3.14.
+- [x] `backend/requirements.txt` diisi lengkap.
 
 ---
 
 ## ⚠️ Current Blocker / Focus
 
-**Sprint 2 notebook perlu di-run ulang dari awal (Kernel → Restart & Run All) sebelum Sprint 3 dimulai.**
+**Sprint 3 notebook belum di-run dengan data penuh.** Notebook sudah ditulis dan smoke-tested, tapi angka aktual (NER F1, ABSA macro-F1, gap single vs multi-conflict) belum ada.
 
-Alasan: patch dilakukan setelah run pertama. Sel dedup (sel-5) mengubah `long_df` yang dipakai semua sel sesudahnya — run parsial tidak aman.
-
-Hal yang perlu dikonfirmasi dari run ulang:
-- Berapa mismatch tersisa setelah fix possessive? (Ekspektasi: turun dari 122 ke ~20-40)
-- Angka final NER clean headlines per split
-- Output files `ner_{train,val,test}.jsonl` dan `absa_{train,val,test}.csv` ter-overwrite dengan versi bersih
-
-**Minor non-blocker (catat untuk nanti):** Di sel-11 `02_preprocessing.ipynb`, filter `t.count('B-ENT') >= 2` bisa crash `.iloc[0]` jika semua multi-entity clean headlines sudah habis. Tidak perlu difix sekarang.
+Yang perlu dikerjakan pertama kali di sesi berikutnya:
+1. Buka `notebooks/03_baseline_models.ipynb` → pastikan kernel Python 3.14 → **Kernel → Restart & Run All**
+2. Report 3 angka kunci (lihat Next Steps di bawah)
 
 ---
 
-## 📝 Next Steps (Sprint 3 — setelah run ulang Sprint 2 dikonfirmasi)
+## 📝 Next Steps
 
-### Sprint 3a: NER Baseline (CRF / spaCy rule-based)
-- [ ] **N-01:** Load `ner_train.jsonl`, definisikan fitur token sederhana (token string, prefix/suffix, is_upper, is_digit, prev/next token)
-- [ ] **N-02:** Latih CRF dengan `sklearn-crfsuite` atau spaCy NER blank model
-- [ ] **N-03:** Evaluasi dengan `seqeval` — precision, recall, F1 per-entity-type
-- [ ] **N-04:** Error analysis: tipe mismatch apa yang paling banyak? (partial match, false positive, false negative)
+### Segera (awal sesi berikutnya)
+- [ ] Run `03_baseline_models.ipynb` full, report:
+  1. **NER CRF entity-level F1** (Part A, sel evaluasi seqeval)
+  2. **ABSA macro-F1 + per-class F1** (Part B, classification_report)
+  3. **Gap akurasi: single vs multi-conflict** (Part B, sel terakhir) — ini justifikasi empiris Sprint 4
 
-### Sprint 3b: ABSA Baseline (TF-IDF + SVM)
-- [ ] **A-01:** Load `absa_train.csv`, buat fitur: gabung `title + " [SEP] " + entity` sebagai input string
-- [ ] **A-02:** TF-IDF vectorizer → SVM dengan `class_weight='balanced'`
-- [ ] **A-03:** Evaluasi: per-class precision/recall/F1, confusion matrix
-- [ ] **A-04:** Error analysis: kasus neutral yang salah diklasifikasi paling sering terjadi di konteks apa?
+### Sprint 4: Transformer Models (setelah baseline angka masuk)
+- [ ] **NER:** Fine-tune RoBERTa/BERT dengan BIO tags (opsi B — subword tokenization + word-to-subword alignment)
+- [ ] **ABSA:** Fine-tune transformer dengan format `[CLS] title [SEP] entity [SEP]`, weighted CrossEntropy
+- [ ] Bandingkan F1 baseline vs transformer secara tabel
+
+### Sprint 5: Pipeline & Deliverables
+- [ ] End-to-end inferensi: `input: headline → {entity: sentiment}`
+- [ ] FastAPI serving (opsional tergantung sisa waktu)
+- [ ] Kompilasi laporan metodologi
 
 ---
 
 ## 🧠 Temporary Decisions
 
-- **Format ABSA input:** `[CLS] {headline} [SEP] {entity} [SEP]` — keputusan arsitektural kunci agar model belajar sentimen kontekstual.
+- **Format ABSA input:** `[CLS] {headline} [SEP] {entity} [SEP]` — kontekstual, bukan expression-based.
 - **Tidak ada LLM labeling** — semua label dari SEntFiN human annotations.
-- **Urutan prioritas model:** Baseline dulu (CRF/SVM), baru fine-tune transformer.
+- **Urutan:** Baseline (CRF/SVM) dulu, baru transformer.
 - **Split di level headline (`s_no`)** — cegah kebocoran title ke train & test.
-- **NER tokenisasi: word-level (opsi A)** saat ini; opsi B (subword alignment) saat fine-tuning transformer.
-- **Imbalance: `class_weight='balanced'`** — bukan SMOTE (SMOTE tidak cocok untuk text classifier).
-- **Normalisasi teks ditunda** — casing & simbol dibiarkan utuh karena relevan untuk NER.
-- **Mismatch headlines:** dikecualikan dari NER training saja; tetap masuk ABSA data (label sentimen tetap valid).
+- **NER tokenisasi:** word-level (opsi A) untuk baseline; subword (opsi B) untuk transformer Sprint 4.
+- **Imbalance:** `class_weight='balanced'` — bukan SMOTE.
+- **Normalisasi teks ditunda** — casing utuh untuk NER.
+- **Mismatch NER (39 headlines):** excluded dari NER training, tetap di ABSA.
+- **Python kernel: 3.14** — satu-satunya yang punya semua library (`sklearn`, `crfsuite`, `seqeval`, `pandas`, `matplotlib`).
 
 ---
 
-## 🔑 Temuan Sprint 1 (terverifikasi dari data)
+## 🔑 Temuan Sprint 1 & 2 (baseline referensi)
 
-- Total: **10.753 headlines** → **14.409 pasangan (headline, entity)** setelah explode.
-- Multi-entity headlines: **2.850** (cocok klaim README).
-- Conflicting-sentiment headlines: **1.235** (43% dari multi-entity) → justifikasi kuat ABSA.
-- Distribusi sentimen: neutral **38.3%**, positive **35.2%**, negative **26.5%** — moderate imbalance.
-- **Entity-span coverage: 100%** → BIO tagging via substring-matching layak.
-- Panjang headline: mean 10 kata / max 23 → `max_length=64` cukup untuk BERT.
-- Kolom `Words` = word-count, bukan daftar entitas → diabaikan.
+- 10.753 headlines → 10.674 setelah dedup → 10.635 clean NER.
+- Distribusi sentimen entity-level: neutral 38.3%, positive 35.2%, negative 26.5%.
+- Entity-span coverage: 100%. Headline length: mean 10 kata / max 23.
+- Split final: train 8.539 / val 1.067 / test 1.068 headlines.
+- ABSA pairs: train 11.433 / val 1.430 / test 1.448.
 
 ---
 
@@ -80,9 +83,12 @@ Hal yang perlu dikonfirmasi dari run ulang:
 
 - `ARTIFACTS/SESSION_INITIALIZATION.md`
 - `ARTIFACTS/PROJECT_CONTEXT.md`
-- `notebooks/01_data_exploration.ipynb` ✅ done
-- `notebooks/02_preprocessing.ipynb` ⚠️ perlu re-run
+- `notebooks/01_data_exploration.ipynb` ✅
+- `notebooks/02_preprocessing.ipynb` ✅
+- `notebooks/03_baseline_models.ipynb` ⏳ belum di-run penuh
 - `data/raw/SEntFiN-v1.1.csv`
 - `data/processed/sentfin_long.csv`
-- `data/processed/ner_{train,val,test}.jsonl` (akan di-overwrite saat re-run)
-- `data/processed/absa_{train,val,test}.csv` (akan di-overwrite saat re-run)
+- `data/processed/ner_{train,val,test}.jsonl`
+- `data/processed/absa_{train,val,test}.csv`
+- `backend/models/` (akan terisi setelah Sprint 3 run penuh)
+- `backend/requirements.txt`
