@@ -1,0 +1,26 @@
+# Financial News Miner - dependencies (Python 3.14 kernel)
+# Sprint 1-3: data processing, EDA, baseline models
+
+# Core data
+pandas
+numpy
+scipy
+
+# EDA / viz
+matplotlib
+
+# Baseline models
+scikit-learn
+sklearn-crfsuite     # NER baseline (CRF)
+seqeval              # entity-level NER metrics
+joblib               # model serialization
+
+# Notebook
+jupyter
+ipykernel
+
+# Sprint 4 (transformer) - uncomment saat mulai fine-tuning
+# torch
+# transformers
+# datasets
+# accelerate
